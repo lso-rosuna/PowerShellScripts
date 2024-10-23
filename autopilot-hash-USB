@@ -106,7 +106,7 @@ Show-ProgressBar -Activity "Generating Hardware Hash" -PercentComplete 80
 Get-WindowsAutopilotInfo -OutputFile $csvFileName
 
 Write-Host "Success! Hardware hash saved to $usbDrivePath\$csvFileName"
-Write-Host "You can now use the CSV file to import the device into an MDM service like Intune."
+Write-Host "You can now use the CSV file to import the device into Intune."
 
 Show-ProgressBar -Activity "Complete" -PercentComplete 100
 Write-Host "Process complete."
