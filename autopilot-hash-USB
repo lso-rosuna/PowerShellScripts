@@ -27,13 +27,13 @@ Write-Host " |  __  | | |  _  /| |/ __| '_ \ / _` | '__/ _` | |" -ForegroundColo
 Write-Host " | |  | | | | | \ \| | (__| | | | (_| | | | (_| |_|" -ForegroundColor Cyan
 Write-Host " |_|  |_|_| |_|  \_\_|\___|_| |_|\__,_|_|  \__,_(_)" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "Welcome! This script will capture your PC's hardware hash and save it to a USB drive."
+Write-Host "Welcome! This LSO IT script will capture this PC's hardware hash and save it to a USB drive, so we can upload it to Intune for Autopilot"
 Write-Host ""
 
 # Provide numbered steps
 Write-Host "Steps:"
 Write-Host "1. Make sure a USB drive is plugged in."
-Write-Host "2. The hardware hash will be saved as a CSV file, with your PC's serial number in the filename."
+Write-Host "2. The hardware hash will be saved as a CSV file, with the PC's serial number in the filename."
 Write-Host "3. The file will be saved to the USB drive in a folder named 'HWID'."
 Write-Host ""
 
