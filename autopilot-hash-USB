@@ -1,0 +1,112 @@
+# Function to display a progress bar
+function Show-ProgressBar {
+    param(
+        [string]$Activity = "Progress",
+        [int]$PercentComplete = 0
+    )
+    Write-Progress -Activity $Activity -Status "$PercentComplete% Complete" -PercentComplete $PercentComplete
+}
+
+# Function to check if the script is running as Administrator
+function Check-Admin {
+    if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+        Write-Host "This script requires administrative privileges. Restarting with elevated privileges..."
+        Start-Process powershell.exe "-ExecutionPolicy Bypass -File $PSCommandPath" -Verb RunAs
+        exit
+    }
+}
+
+# Call the function to check for admin rights
+Check-Admin
+
+# Display greeting and instructions
+Write-Host "  _    _ _   _____  _      _                   _ _ " -ForegroundColor Cyan
+Write-Host " | |  | (_) |  __ \(_)    | |                 | | |" -ForegroundColor Cyan
+Write-Host " | |__| |_  | |__) |_  ___| |__   __ _ _ __ __| | |" -ForegroundColor Cyan
+Write-Host " |  __  | | |  _  /| |/ __| '_ \ / _` | '__/ _` | |" -ForegroundColor Cyan
+Write-Host " | |  | | | | | \ \| | (__| | | | (_| | | | (_| |_|" -ForegroundColor Cyan
+Write-Host " |_|  |_|_| |_|  \_\_|\___|_| |_|\__,_|_|  \__,_(_)" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "Welcome! This script will capture your PC's hardware hash and save it to a USB drive."
+Write-Host ""
+
+# Provide numbered steps
+Write-Host "Steps:"
+Write-Host "1. Make sure a USB drive is plugged in."
+Write-Host "2. The hardware hash will be saved as a CSV file, with your PC's serial number in the filename."
+Write-Host "3. The file will be saved to the USB drive in a folder named 'HWID'."
+Write-Host ""
+
+# Show progress for the first step
+Show-ProgressBar -Activity "Checking USB Drive" -PercentComplete 10
+
+# Function to get the PC's serial number
+function Get-PCSerialNumber {
+    $serialNumber = Get-WmiObject -Class Win32_BIOS | Select-Object -ExpandProperty SerialNumber
+    return $serialNumber
+}
+
+# Function to find USB drive
+function Get-USBDrive {
+    return Get-WmiObject -Query "SELECT * FROM Win32_DiskDrive WHERE InterfaceType='USB'" | 
+        ForEach-Object {
+            $drive = $_
+            $partitions = Get-WmiObject -Query "ASSOCIATORS OF {Win32_DiskDrive.DeviceID='$($drive.DeviceID)'} WHERE AssocClass=Win32_DiskDriveToDiskPartition"
+            $partitions | ForEach-Object {
+                $logicalDisks = Get-WmiObject -Query "ASSOCIATORS OF {Win32_DiskPartition.DeviceID='$($_.DeviceID)'} WHERE AssocClass=Win32_LogicalDiskToPartition"
+                $logicalDisks | ForEach-Object {
+                    $_.DeviceID
+                }
+            }
+        }
+}
+
+# Loop to keep asking for a USB drive if none is found
+$usbDrive = $null
+while (-not $usbDrive) {
+    $usbDrive = Get-USBDrive
+
+    if (-not $usbDrive) {
+        Write-Host "No USB drive found. Please insert a USB drive and press Enter to try again."
+        Read-Host
+    }
+}
+
+Write-Host "USB drive detected. Preparing to save hardware hash..."
+Show-ProgressBar -Activity "USB Drive Detected" -PercentComplete 25
+
+# Get the PC serial number
+$serialNumber = Get-PCSerialNumber
+if (-not $serialNumber) {
+    Write-Host "Unable to retrieve the PC's serial number."
+    exit
+}
+
+# Set the location to the USB drive and append the serial number to the CSV file name
+$usbDrivePath = $usbDrive + "\HWID"
+New-Item -Type Directory -Path $usbDrivePath -Force
+
+Show-ProgressBar -Activity "Preparing Save Location" -PercentComplete 40
+
+# Create the file name with the serial number appended
+$csvFileName = "AutopilotHWID_$serialNumber.csv"
+
+# Run the rest of the script to get the Autopilot hardware hash and save it to the USB drive with the modified filename
+Set-Location -Path $usbDrivePath
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+$env:Path += ";C:\Program Files\WindowsPowerShell\Scripts"
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned -Force
+
+Write-Host "Downloading and installing Autopilot script..."
+Show-ProgressBar -Activity "Installing Autopilot Script" -PercentComplete 60
+Install-Script -Name Get-WindowsAutopilotInfo -Force
+
+Write-Host "Generating hardware hash..."
+Show-ProgressBar -Activity "Generating Hardware Hash" -PercentComplete 80
+Get-WindowsAutopilotInfo -OutputFile $csvFileName
+
+Write-Host "Success! Hardware hash saved to $usbDrivePath\$csvFileName"
+Write-Host "You can now use the CSV file to import the device into an MDM service like Intune."
+
+Show-ProgressBar -Activity "Complete" -PercentComplete 100
+Write-Host "Process complete."
